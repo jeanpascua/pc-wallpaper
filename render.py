@@ -1,6 +1,7 @@
 """Draw stats onto a PNG image, hacker terminal theme, two-column layout."""
 
 import random
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
@@ -16,7 +17,22 @@ TEXT_COLOR = GREEN
 WARN_COLOR = (255, 180, 40)
 CRIT_COLOR = (255, 60, 60)
 
-FONT_PATH = "/usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-ExtraBold.ttf"
+
+def find_font_path() -> str:
+    """Resolve a monospace bold font via fontconfig instead of a hardcoded path —
+    prefers JetBrains Mono, falls back to whatever bold monospace font is installed."""
+    for query in ("JetBrains Mono:style=ExtraBold", "monospace:style=Bold"):
+        result = subprocess.run(
+            ["fc-match", query, "--format=%{file}"],
+            capture_output=True, text=True, check=True,
+        )
+        path = result.stdout.strip()
+        if path:
+            return path
+    raise RuntimeError("No monospace font found via fontconfig (fc-match)")
+
+
+FONT_PATH = find_font_path()
 FONT_SIZE = 34
 HEADER_FONT_SIZE = 28
 TERM_FONT_SIZE = 30

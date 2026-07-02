@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Entry point: persistent loop — gather stats, render wallpaper, apply it."""
 
+import os
 import subprocess
 import time
 
@@ -10,7 +11,23 @@ from render import render, OUT_PATH
 INTERVAL = 1.0
 
 
+def detect_desktop_environment() -> str:
+    return os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+
+
 def set_wallpaper() -> None:
+    desktop = detect_desktop_environment()
+    if "GNOME" in desktop:
+        _set_wallpaper_gnome()
+    else:
+        raise NotImplementedError(
+            f"Desktop environment '{desktop or 'unknown'}' detected — only GNOME's wallpaper-set "
+            "command (gsettings) is implemented/tested. KDE/XFCE/other DEs use different mechanisms "
+            "(e.g. plasma-apply-wallpaperimage, xfconf-query) that haven't been verified here."
+        )
+
+
+def _set_wallpaper_gnome() -> None:
     uri = f"file://{OUT_PATH}"
     subprocess.run(
         ["gsettings", "set", "org.gnome.desktop.background", "picture-uri", uri],

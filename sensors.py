@@ -63,11 +63,24 @@ def get_resolution() -> tuple[int, int]:
     return geo.width, geo.height
 
 
+def find_cpu_hwmon() -> tuple[Path, str] | None:
+    """Detect CPU vendor by checking for known hwmon chip names. Returns (hwmon_dir, chip_name)."""
+    for chip_name in ("k10temp", "coretemp"):  # AMD, Intel
+        hwmon = find_hwmon(chip_name)
+        if hwmon is not None:
+            return hwmon, chip_name
+    return None
+
+
 def get_cpu_temp() -> float:
-    hwmon = find_hwmon("k10temp")
-    if hwmon is None:
-        raise RuntimeError("k10temp sensor not found")
-    temp_file = find_temp_input(hwmon, label="Tctl")
+    found = find_cpu_hwmon()
+    if found is None:
+        raise RuntimeError("No supported CPU temp sensor found (checked k10temp, coretemp)")
+    hwmon, chip_name = found
+    label = "Tctl" if chip_name == "k10temp" else "Package id 0"
+    temp_file = find_temp_input(hwmon, label=label)
+    if temp_file is None:
+        temp_file = find_temp_input(hwmon)  # fallback: first temp input
     raw = temp_file.read_text().strip()
     return int(raw) / 1000.0
 
@@ -147,6 +160,7 @@ def get_igpu_stats() -> dict | None:
 
 
 def get_cpu_chiplet_temp() -> float | None:
+    """AMD-specific (per-chiplet die temp) — returns None on Intel, which has no equivalent."""
     hwmon = find_hwmon("k10temp")
     if hwmon is None:
         return None
@@ -193,6 +207,17 @@ def compute_network_rate(prev: tuple[float, int, int], curr: tuple[float, int, i
 
 
 def get_gpu_stats() -> dict:
+    if shutil.which("nvidia-smi") is not None:
+        return _get_nvidia_gpu_stats()
+    if shutil.which("rocm-smi") is not None:
+        raise NotImplementedError(
+            "AMD GPU detected (rocm-smi present) but parsing isn't implemented yet — "
+            "couldn't verify rocm-smi's JSON output structure without real AMD GPU hardware to test against."
+        )
+    raise RuntimeError("No supported GPU monitoring tool found (checked nvidia-smi, rocm-smi)")
+
+
+def _get_nvidia_gpu_stats() -> dict:
     result = subprocess.run(
         [
             "nvidia-smi",
