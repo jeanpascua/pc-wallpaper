@@ -41,11 +41,10 @@ def _set_wallpaper_gnome() -> None:
 
 def main() -> None:
     width, height = get_resolution()  # detected once, not every frame
-    prev_net = None
     while True:
         start = time.monotonic()
 
-        stats, prev_net = collect_all(prev_net)
+        stats = collect_all()
         render(stats, width, height)
         set_wallpaper()
 
