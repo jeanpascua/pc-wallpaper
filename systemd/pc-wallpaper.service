@@ -1,0 +1,14 @@
+[Unit]
+Description=PC stats live wallpaper
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/pc-wallpaper
+ExecStart=/usr/bin/python3 %h/projects/pc-wallpaper/main.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
